@@ -1,0 +1,110 @@
+---
+title: "Untitled"
+author: "202002857_이혜지"
+date: "2022-12-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(randomForest)
+```
+<br>
+
+### 1. 배추 가격에 영향을 주는 요인
+#### - 데이터 불러오기
+```{r}
+df_c <- read.csv("./df_c.csv")
+df_c$date <- as.Date(df_c$date)
+df_c<-df_c[, -c(1:3,9)]
+head(df_c)
+```
+- 변수 설명
+
+date: 일자
+tmp: 평균기온
+rain: 일강수량
+humidity: 평균상대습도
+insolation: 합계일사량
+volume: 거래량
+trade_price: 거래금액
+year: 연도
+month: 월
+area: 면적
+output: 생산량
+total_indices: 총지수
+indices: 물가지수
+X5humidity: 0.5m평균습도
+X10humidity: 10cm토양수분
+y: 도매가격
+
+<br>
+
+
+#### - 데이터 특성 확인
+```{r}
+str(df_c)
+```
+<br>
+
+#### - 랜덤포레스트
+```{r}
+rf_c <- randomForest(y ~ ., df_c, importance=TRUE)
+rf_c
+```
+설명도가 약 83%로 성능이 우수하다고 할 수 있다.
+
+#### - 변수의 중요도 확인
+```{r}
+importance(rf_c)
+```
+
+```{r}
+varImpPlot(rf_c)
+```
+<br>
+
+- %IncMSE = 정확도, IncNodePurity = 중요도 출력
+
+<br>
+
+#### - 목표변수의 적합값 구하기 위해 MSE 계산
+```{r}
+df_c$y.hat=predict(rf_c, newdata=df_c)
+sqrt(mean((df_c$y-df_c$y.hat)^2)) #RMSE
+
+# 랜덤포레스트 회귀앙상블의 적합값과 실제값의 일치도
+plot(df_c$y, df_c$y.hat, xlab="Observed Values", ylab="Fitted Values")
+abline(0,1)
+```
+
+RMSE가 작을수록 잘 추정된 회귀 직선!
+
+#### 중요도가 가장 높은 변수와 y(도매가격)의 추세선
+
+```{r}
+df_c2 <- df_c[order(df_c$indices),]
+ggplot(df_c2,aes(x=indices, y=y))+geom_smooth()
+```
+
+
+
+#### - 30% 검증데이터에 적용시켜 분류예측치 구하기
+```{r}
+idx <- sample(1:nrow(df_c), size=nrow(df_c)*0.7)
+train <- df_c[idx, ] #70% for training data
+test <- df_c[-idx, ] #30% for test data
+
+
+rf_c.train<-randomForest(y~., train, importance=TRUE)
+
+yt_pred<-predict(rf_c.train, newdata=test)
+sqrt(mean((test$y-yt_pred)^2)) #RMSE
+cor(test$y,yt_pred)^2 #R^2
+plot(test$y, yt_pred, xlab="Observed Values", ylab="Fitted Values", main="RandomForest")
+abline(0,1)
+```
+

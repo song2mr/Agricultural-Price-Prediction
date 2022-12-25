@@ -1,0 +1,164 @@
+---
+title: "SVR"
+author: "201801984송찬영"
+date: '2022 12 4 '
+output: html_document
+---
+## library, 데이터 불러오기
+```{r}
+#install.packages('e1071')
+#install.packages('Epi')
+#install.packages('rminer')
+library(e1071)   # SVR 분석 패키지
+library(Epi)    # ROC, AUC
+library(dplyr)
+library(rpart)
+library(rminer)
+library(ggplot2)
+library(tibble)
+
+df_o <- read.csv('df_o.csv')
+df_p <- read.csv('df_p.csv')
+df_c <- read.csv('df_c.csv')
+df_o$date <- as.Date(df_o$date)
+df_p$date <- as.Date(df_p$date)
+df_c$date <- as.Date(df_c$date)
+
+```
+
+## df_o
+```{r}
+set.seed(1234)
+t_index <- sample(1:nrow(df_o), size=nrow(df_o)*0.8)
+train <- df_o[t_index, ]
+test <- df_o[-t_index, ]
+test <- test %>% select(-c(jj,market))
+train <- train %>% select(-c(jj,market))
+
+svr.model <- svm(y ~date+tmp+rain+humidity+insolation+volume+trade_price+year+month+area+output10a+output+total_indices+indices+X5humidity+X10humidity, data=train, kernal='radial', type='eps-regression', epsilon=0.5, gamma=0.1, cost=30)
+summary(svr.model)
+
+# 예측
+yhat_test <- predict(svr.model, test)
+
+# 그래프
+plot(x=test$y, y=yhat_test, main="SVR")
+
+print(paste('R^2: ',cor(test$y,yhat_test)^2))
+print(paste('RMSE: ',sqrt(mean((yhat_test-test$y)^2))))
+
+```
+
+### 변수 중요도
+
+```{r}
+w <- t(svr.model$coefs) %*% svr.model$SV                 # weight vectors
+w <- apply(w, 2, function(v){sqrt(sum(v^2))})  # weight
+w <- sort(w, decreasing = T)
+w <- as.data.frame(w)
+names(w) <- 'imp'
+w <- rownames_to_column(w, var="name")
+print(w)
+ggplot(w, 
+       aes(x=reorder(name,-imp), y=imp)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=-90, vjust=0.5, hjust=0))
+```
+### 중요도가 가장 높은 변수와 y(도매가격) 추세선
+```{r}
+df_o2 <- df_o[order(df_o$volume),]
+ggplot(df_o2,aes(x=volume, y=y))+geom_smooth()
+```
+
+
+## df_p
+
+```{r}
+set.seed(1234)
+t_index <- sample(1:nrow(df_p), size=nrow(df_p)*0.8)
+train <- df_p[t_index, ]
+test <- df_p[-t_index, ]
+test <- test %>% select(-c(jj,market))
+train <- train %>% select(-c(jj,market))
+
+svr.model <- svm(y ~date+tmp+rain+humidity+insolation+volume+trade_price+year+month+area+output10a+output+total_indices+indices+X5humidity+X10humidity, data=train, kernal='radial', type='eps-regression', epsilon=0.5, gamma=0.1, cost=30)
+summary(svr.model)
+
+# 예측
+yhat_test <- predict(svr.model, test)
+
+# 그래프
+plot(x=test$y, y=yhat_test, main="SVR")
+
+print(paste('R^2: ',cor(test$y,yhat_test)^2))
+print(paste('RMSE: ',sqrt(mean((yhat_test-test$y)^2))))
+```
+
+### 변수 중요도
+
+```{r}
+w <- t(svr.model$coefs) %*% svr.model$SV                 # weight vectors
+w <- apply(w, 2, function(v){sqrt(sum(v^2))})  # weight
+w <- sort(w, decreasing = T)
+w <- as.data.frame(w)
+names(w) <- 'imp'
+w <- rownames_to_column(w, var="name")
+print(w)
+ggplot(w, 
+       aes(x=reorder(name,-imp), y=imp)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=-90, vjust=0.5, hjust=0))
+```
+### 중요도가 가장 높은 변수와 y(도매가격) 추세선
+
+```{r}
+
+df_p2 <- df_p[order(df_p$trade_price),]
+ggplot(df_p2,aes(x=trade_price, y=y))+geom_smooth()
+```
+## df_c
+
+```{r}
+set.seed(1234)
+t_index <- sample(1:nrow(df_c), size=nrow(df_c)*0.8)
+train <- df_c[t_index, ]
+test <- df_c[-t_index, ]
+test <- test %>% select(-c(jj,market))
+train <- train %>% select(-c(jj,market))
+
+svr.model <- svm(y ~date+tmp+rain+humidity+insolation+volume+trade_price+year+month+area+output+total_indices+indices+X5humidity+X10humidity, data=train, kernal='radial', type='eps-regression', epsilon=0.5, gamma=0.1, cost=30)
+summary(svr.model)
+
+# 예측
+yhat_test <- predict(svr.model, test)
+
+# 그래프
+plot(x=test$y, y=yhat_test, main="SVR")
+
+print(paste('R^2: ',cor(test$y,yhat_test)^2))
+print(paste('RMSE: ',sqrt(mean((yhat_test-test$y)^2))))
+```
+### 변수 중요도
+
+```{r}
+w <- t(svr.model$coefs) %*% svr.model$SV                 # weight vectors
+w <- apply(w, 2, function(v){sqrt(sum(v^2))})  # weight
+w <- sort(w, decreasing = T)
+w <- as.data.frame(w)
+names(w) <- 'imp'
+w <- rownames_to_column(w, var="name")
+print(w)
+ggplot(w, 
+       aes(x=reorder(name,-imp), y=imp)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=-90, vjust=0.5, hjust=0))
+```
+
+### 중요도가 가장 높은 변수와 y(도매가격) 추세선
+
+```{r}
+df_c2 <- df_c[order(df_c$volume),]
+ggplot(df_c2,aes(x=volume, y=y))+geom_smooth()
+```
+
+
